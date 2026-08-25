@@ -1,16 +1,13 @@
 /* ============================================================
-   SISTEMA DE RACHAS - APP COMPLETO
+   SISTEMA DE RACHAS - APP COMPLETO (CORRIGIDO E SEGURO)
    ============================================================ */
 
 // ============================================================
-// CONFIGURAÇÃO - PREENCHA COM SEUS DADOS DO SUPABASE
+// CONFIGURAÇÃO DO SUPABASE
 // ============================================================
 const SUPABASE_URL = 'https://molgjdwraurvxffiuqki.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vbGdqZHdyYXVydnhmZml1cWtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2ODUzNzUsImV4cCI6MjEwMzI2MTM3NX0.pSZuxAIXTJUUBo9uyxNR3LvPkXTeW0k6u1-ico-YlQE';
 
-// ============================================================
-// CLASSE PRINCIPAL
-// ============================================================
 class App {
     constructor() {
         this.supabase = null;
@@ -22,35 +19,55 @@ class App {
         this.currentScreen = 'loading';
         this.screenParams = {};
         this.realtimeSub = null;
-        this.pollingInterval = null;
         this.navVisible = false;
     }
 
     async init() {
-        this.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        try {
+            // Verifica se a biblioteca carregou
+            if (typeof window.supabase === 'undefined') {
+                console.error('Biblioteca do Supabase não foi carregada.');
+                this.navigate('auth');
+                return;
+            }
 
-        const { data: { session } } = await this.supabase.auth.getSession();
-        if (session) {
-            this.user = session.user;
-            await this.loadProfile();
-        }
+            this.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        this.supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
+            // Timeout de segurança: se o Supabase não responder em 3s, abre a tela de login
+            const sessionPromise = this.supabase.auth.getSession();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+
+            const { data } = await Promise.race([sessionPromise, timeoutPromise]).catch(() => ({ data: { session: null } }));
+            const session = data ? data.session : null;
+
+            if (session) {
                 this.user = session.user;
                 await this.loadProfile();
+            }
+
+            this.supabase.auth.onAuthStateChange(async (event, newSession) => {
+                if (event === 'SIGNED_IN' && newSession) {
+                    this.user = newSession.user;
+                    await this.loadProfile();
+                    await this.loadRachaData();
+                    this.navigate('home');
+                } else if (event === 'SIGNED_OUT') {
+                    this.user = null;
+                    this.profile = null;
+                    this.currentRacha = null;
+                    this.participations = [];
+                    this.navigate('auth');
+                }
+            });
+
+            if (this.user) {
+                await this.loadRachaData();
                 this.navigate('home');
-            } else if (event === 'SIGNED_OUT') {
-                this.user = null;
-                this.profile = null;
+            } else {
                 this.navigate('auth');
             }
-        });
-
-        if (this.user) {
-            await this.loadRachaData();
-            this.navigate('home');
-        } else {
+        } catch (err) {
+            console.error('Erro na inicialização:', err);
             this.navigate('auth');
         }
     }
@@ -60,12 +77,26 @@ class App {
     // ============================================================
     async loadProfile() {
         if (!this.user) return;
-        const { data, error } = await this.supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', this.user.id)
-            .single();
-        if (!error && data) this.profile = data;
+        try {
+            const { data, error } = await this.supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', this.user.id)
+                .maybeSingle();
+
+            if (!error && data) {
+                this.profile = data;
+            } else {
+                // Se o perfil ainda não existir, cria localmente a partir dos metadados
+                this.profile = {
+                    id: this.user.id,
+                    username: this.user.user_metadata?.username || this.user.email.split('@')[0],
+                    display_name: this.user.user_metadata?.display_name || this.user.email.split('@')[0]
+                };
+            }
+        } catch (e) {
+            console.warn('Erro ao carregar perfil:', e);
+        }
     }
 
     async loadRachaData() {
@@ -76,74 +107,84 @@ class App {
             return;
         }
 
-        // Busca racha ativo (não finalizado)
-        const { data: racha, error } = await this.supabase
-            .from('rachas')
-            .select('*, organizer:organizer_id(id, display_name, username)')
-            .in('status', ['open', 'closed'])
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+        try {
+            const { data: racha, error } = await this.supabase
+                .from('rachas')
+                .select('*, organizer:organizer_id(id, display_name, username)')
+                .in('status', ['open', 'closed'])
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-        if (!error && racha) {
-            this.currentRacha = racha;
-            await this.loadParticipations(racha.id);
-            this.setupRealtime(racha.id);
-        } else {
-            this.currentRacha = null;
-            this.participations = [];
-            this.stopRealtime();
+            if (!error && racha) {
+                this.currentRacha = racha;
+                await this.loadParticipations(racha.id);
+                this.setupRealtime(racha.id);
+            } else {
+                this.currentRacha = null;
+                this.participations = [];
+                this.stopRealtime();
+            }
+        } catch (e) {
+            console.warn('Erro ao carregar racha:', e);
         }
     }
 
     async loadParticipations(rachaId) {
-        const { data, error } = await this.supabase
-            .from('participations')
-            .select('*, player:player_id(id, display_name, username)')
-            .eq('racha_id', rachaId)
-            .order('joined_at', { ascending: true });
+        try {
+            const { data, error } = await this.supabase
+                .from('participations')
+                .select('*, player:player_id(id, display_name, username)')
+                .eq('racha_id', rachaId)
+                .order('joined_at', { ascending: true });
 
-        if (!error && data) {
-            this.participations = data;
-            // Carrega comprovantes se for organizador
-            if (this.isOrganizer()) {
-                const { data: receipts } = await this.supabase
-                    .from('receipts')
-                    .select('*')
-                    .in('participation_id', data.map(p => p.id));
-                this.receipts = receipts || [];
+            if (!error && data) {
+                this.participations = data;
+                if (this.isOrganizer()) {
+                    const { data: receipts } = await this.supabase
+                        .from('receipts')
+                        .select('*')
+                        .in('participation_id', data.map(p => p.id));
+                    this.receipts = receipts || [];
+                }
             }
+        } catch (e) {
+            console.warn('Erro ao carregar participantes:', e);
         }
     }
 
     setupRealtime(rachaId) {
         this.stopRealtime();
 
-        this.realtimeSub = this.supabase
-            .channel('racha-' + rachaId)
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'participations',
-                filter: 'racha_id=eq.' + rachaId
-            }, (payload) => {
-                this.handleRealtimeChange(payload);
-            })
-            .on('postgres_changes', {
-                event: 'UPDATE',
-                schema: 'public',
-                table: 'rachas',
-                filter: 'id=eq.' + rachaId
-            }, (payload) => {
-                this.currentRacha = { ...this.currentRacha, ...payload.new };
-                this.render();
-            })
-            .subscribe();
+        try {
+            this.realtimeSub = this.supabase
+                .channel('racha-' + rachaId)
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'participations',
+                    filter: 'racha_id=eq.' + rachaId
+                }, (payload) => {
+                    this.handleRealtimeChange(payload);
+                })
+                .on('postgres_changes', {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'rachas',
+                    filter: 'id=eq.' + rachaId
+                }, (payload) => {
+                    this.currentRacha = { ...this.currentRacha, ...payload.new };
+                    this.render();
+                })
+                .subscribe();
+        } catch (e) {
+            console.warn('Erro ao ligar Realtime:', e);
+        }
     }
 
     stopRealtime() {
         if (this.realtimeSub) {
-            this.supabase.removeChannel(this.realtimeSub);
+            try { this.supabase.removeChannel(this.realtimeSub); } catch(e) {}
             this.realtimeSub = null;
         }
     }
@@ -152,15 +193,15 @@ class App {
         const { eventType, new: newRow, old: oldRow } = payload;
 
         if (eventType === 'INSERT') {
-            this.participations.push(newRow);
+            this.loadParticipations(this.currentRacha.id).then(() => this.render());
         } else if (eventType === 'UPDATE') {
             const idx = this.participations.findIndex(p => p.id === newRow.id);
             if (idx >= 0) this.participations[idx] = { ...this.participations[idx], ...newRow };
+            this.render();
         } else if (eventType === 'DELETE') {
             this.participations = this.participations.filter(p => p.id !== oldRow.id);
+            this.render();
         }
-
-        this.render();
     }
 
     // ============================================================
@@ -176,6 +217,7 @@ class App {
 
     render() {
         const app = document.getElementById('app');
+        if (!app) return;
         let html = '';
 
         switch (this.currentScreen) {
@@ -236,12 +278,12 @@ class App {
                         <input type="text" id="reg-user" placeholder="seu_usuario" autocomplete="username">
                     </div>
                     <div class="form-group">
-                        <label>Nome</label>
-                        <input type="text" id="reg-name" placeholder="Como quer ser chamado">
+                        <label>Nome Completo / Apelido</label>
+                        <input type="text" id="reg-name" placeholder="Ex: Rodrigo Silva">
                     </div>
                     <div class="form-group">
                         <label>Senha</label>
-                        <input type="password" id="reg-pass" placeholder="Crie uma senha" autocomplete="new-password">
+                        <input type="password" id="reg-pass" placeholder="Crie uma senha simples" autocomplete="new-password">
                     </div>
                     <button class="btn btn-primary" id="btn-register">Criar conta</button>
                 </div>
@@ -302,14 +344,14 @@ class App {
 
         let myStatusHtml = '';
         if (!myPart && r.status === 'open') {
-            myStatusHtml = `<button class="btn btn-primary" id="btn-participar">Participar</button>`;
+            myStatusHtml = `<button class="btn btn-primary" id="btn-participar">⚽ Participar do Racha</button>`;
         } else if (myPart) {
             if (myPart.status === 'awaiting_payment' && r.payment_timing === 'before') {
                 myStatusHtml = this.renderPaymentSection(myPart, r);
             } else if (myPart.status === 'confirmed') {
                 myStatusHtml = `<div class="alert alert-success">✅ Você está confirmado!</div>`;
             } else if (myPart.status === 'furou') {
-                myStatusHtml = `<div class="alert alert-warning">🐔 Você furou! Ainda pode pagar.</div>` + this.renderPaymentSection(myPart, r);
+                myStatusHtml = `<div class="alert alert-warning">🐔 Você furou! Anexe o comprovante para confirmar.</div>` + this.renderPaymentSection(myPart, r);
             } else if (myPart.status === 'removed') {
                 myStatusHtml = `<div class="alert alert-danger">❌ Você foi removido deste racha.</div>`;
             }
@@ -327,7 +369,7 @@ class App {
             </div>`;
 
             if (isOrg && excess > 0) {
-                const perPerson = Math.floor(excess / confirmed.length);
+                const perPerson = Math.floor(excess / (confirmed.length || 1));
                 financeHtml += `<div class="alert alert-success">💡 Excedente de ${this.formatMoney(excess)} ÷ ${confirmed.length} = ~${this.formatMoney(perPerson)} por pessoa</div>`;
             }
             if (deficit > 0) {
@@ -438,7 +480,8 @@ class App {
     }
 
     renderParticipant(p, isOrg) {
-        const initials = p.player.display_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+        const name = p.player?.display_name || 'Jogador';
+        const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
         let badge = '';
         if (p.status === 'confirmed') badge = '<span class="badge badge-confirmed">✓</span>';
         else if (p.status === 'awaiting_payment') badge = '<span class="badge badge-awaiting">⏳</span>';
@@ -449,11 +492,10 @@ class App {
         if (isOrg && p.status !== 'removed' && p.player_id !== this.user.id) {
             actions = `
             <div class="participant-actions">
-                ${p.status !== 'removed' ? `<button class="btn btn-sm btn-danger" data-action="remove" data-id="${p.id}">Remover</button>` : ''}
+                <button class="btn btn-sm btn-danger" data-action="remove" data-id="${p.id}">Remover</button>
             </div>`;
         }
 
-        // Se for organizador, mostra comprovante
         let receiptBtn = '';
         if (isOrg && p.status === 'confirmed') {
             const receipt = this.receipts.find(r => r.participation_id === p.id);
@@ -467,7 +509,7 @@ class App {
             <div class="participant-info">
                 <div class="participant-avatar">${initials}</div>
                 <div>
-                    <div class="participant-name">${this.escapeHtml(p.player.display_name)} ${badge}</div>
+                    <div class="participant-name">${this.escapeHtml(name)} ${badge}</div>
                     <div style="font-size:12px;color:var(--text-muted);">${p.goals || 0} gols</div>
                 </div>
             </div>
@@ -500,7 +542,7 @@ class App {
                 </div>
                 <div class="form-group">
                     <label>Local</label>
-                    <input type="text" id="racha-location" placeholder="Ex: Arena X">
+                    <input type="text" id="racha-location" placeholder="Ex: Arena Play Soccer">
                 </div>
                 <div class="form-group">
                     <label>Valor do campo (R$)</label>
@@ -592,7 +634,7 @@ class App {
                     <button class="tab-btn" data-tab="furoes">🐔 Furões</button>
                 </div>
                 <div id="ranking-content">
-                    <div class="loading" style="text-align:center;padding:40px;">Carregando...</div>
+                    <div class="loading" style="text-align:center;padding:40px;">Carregando rankings...</div>
                 </div>
             </div>
         </div>`;
@@ -603,6 +645,7 @@ class App {
     // ============================================================
     renderProfile() {
         if (!this.profile) return this.renderAuth();
+        const initials = (this.profile.display_name || 'U').slice(0,2).toUpperCase();
         return `
         <div class="fade-in">
             <div class="app-header">
@@ -610,7 +653,7 @@ class App {
             </div>
             <div class="card" style="text-align:center;padding:32px 20px;">
                 <div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--info));display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;margin:0 auto 16px;">
-                    ${this.profile.display_name.slice(0,2).toUpperCase()}
+                    ${initials}
                 </div>
                 <div style="font-size:20px;font-weight:700;margin-bottom:4px;">${this.escapeHtml(this.profile.display_name)}</div>
                 <div style="color:var(--text-muted);font-size:14px;">@${this.escapeHtml(this.profile.username)}</div>
@@ -618,7 +661,7 @@ class App {
             <div class="card">
                 <div class="card-title">⚙️ Configurações</div>
                 <div class="form-group">
-                    <label>Nome</label>
+                    <label>Seu Nome / Apelido</label>
                     <input type="text" id="profile-name" value="${this.escapeHtml(this.profile.display_name)}">
                 </div>
                 <button class="btn btn-primary" id="btn-save-profile">Salvar nome</button>
@@ -645,7 +688,7 @@ class App {
 
             <div class="card">
                 <div class="card-title">🏃 Presença</div>
-                <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Marque quem realmente compareceu ao jogo.</p>
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Marque quem compareceu ao jogo.</p>
                 <div class="participant-list">
                     ${activeParts.map(p => this.renderPresenceRow(p)).join('')}
                 </div>
@@ -675,25 +718,27 @@ class App {
     }
 
     renderPresenceRow(p) {
+        const name = p.player?.display_name || 'Jogador';
         return `
         <div class="participant-item" style="flex-wrap:wrap;">
             <div class="participant-info" style="flex:1;min-width:0;">
-                <div class="participant-avatar">${p.player.display_name.slice(0,2).toUpperCase()}</div>
-                <div class="participant-name">${this.escapeHtml(p.player.display_name)}</div>
+                <div class="participant-avatar">${name.slice(0,2).toUpperCase()}</div>
+                <div class="participant-name">${this.escapeHtml(name)}</div>
             </div>
             <div class="presence-toggle" data-presence-id="${p.id}">
-                <button class="presence-btn present ${p.presence === 'present' ? 'present' : ''}" data-value="present">Presente</button>
+                <button class="presence-btn present ${p.presence === 'present' || !p.presence ? 'present' : ''}" data-value="present">Presente</button>
                 <button class="presence-btn absent ${p.presence === 'absent' ? 'absent' : ''}" data-value="absent">Faltou</button>
             </div>
         </div>`;
     }
 
     renderGoalsRow(p) {
+        const name = p.player?.display_name || 'Jogador';
         return `
         <div class="participant-item">
             <div class="participant-info">
-                <div class="participant-avatar">${p.player.display_name.slice(0,2).toUpperCase()}</div>
-                <div class="participant-name">${this.escapeHtml(p.player.display_name)}</div>
+                <div class="participant-avatar">${name.slice(0,2).toUpperCase()}</div>
+                <div class="participant-name">${this.escapeHtml(name)}</div>
             </div>
             <div class="goals-input" data-goals-id="${p.id}">
                 <button data-delta="-1">−</button>
@@ -704,11 +749,12 @@ class App {
     }
 
     renderPaymentRow(p) {
+        const name = p.player?.display_name || 'Jogador';
         return `
         <div class="participant-item" style="flex-wrap:wrap;">
             <div class="participant-info" style="flex:1;min-width:0;">
-                <div class="participant-avatar">${p.player.display_name.slice(0,2).toUpperCase()}</div>
-                <div class="participant-name">${this.escapeHtml(p.player.display_name)}</div>
+                <div class="participant-avatar">${name.slice(0,2).toUpperCase()}</div>
+                <div class="participant-name">${this.escapeHtml(name)}</div>
             </div>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                 <input type="checkbox" data-paid-id="${p.id}" ${p.paid_after ? 'checked' : ''}>
@@ -738,8 +784,8 @@ class App {
                     ${confirmed.filter(p => p.player_id !== this.user.id).map(p => `
                         <div class="participant-item" style="cursor:pointer;" data-transfer-id="${p.player_id}">
                             <div class="participant-info">
-                                <div class="participant-avatar">${p.player.display_name.slice(0,2).toUpperCase()}</div>
-                                <div class="participant-name">${this.escapeHtml(p.player.display_name)}</div>
+                                <div class="participant-avatar">${(p.player?.display_name || 'J').slice(0,2).toUpperCase()}</div>
+                                <div class="participant-name">${this.escapeHtml(p.player?.display_name || 'Jogador')}</div>
                             </div>
                             <span style="color:var(--primary);font-weight:700;font-size:13px;">Selecionar →</span>
                         </div>
@@ -798,7 +844,7 @@ class App {
 
     escapeHtml(str) {
         if (!str) return '';
-        return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',''':'&#39;'}[m]));
+        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
     }
 
     showToast(msg, type = 'success') {
@@ -818,7 +864,7 @@ class App {
     // EVENT LISTENERS
     // ============================================================
     attachListeners() {
-        // Auth tabs
+        // Tabs de login/cadastro
         document.querySelectorAll('#auth-tabs .tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#auth-tabs .tab-btn').forEach(b => b.classList.remove('active'));
@@ -829,45 +875,59 @@ class App {
             });
         });
 
-        // Login
+        // Botão de Login
         const btnLogin = document.getElementById('btn-login');
         if (btnLogin) {
             btnLogin.addEventListener('click', async () => {
-                const user = document.getElementById('login-user').value.trim();
+                const user = document.getElementById('login-user').value.trim().toLowerCase();
                 const pass = document.getElementById('login-pass').value;
                 if (!user || !pass) return this.showToast('Preencha usuário e senha', 'error');
                 btnLogin.disabled = true;
                 btnLogin.textContent = 'Entrando...';
+
                 const { data, error } = await this.supabase.auth.signInWithPassword({
                     email: user + '@rachas.local',
                     password: pass
                 });
+
                 btnLogin.disabled = false;
                 btnLogin.textContent = 'Entrar';
-                if (error) this.showToast(error.message, 'error');
+                if (error) this.showToast('Usuário ou senha incorretos.', 'error');
             });
         }
 
-        // Register
+        // Botão de Cadastro
         const btnReg = document.getElementById('btn-register');
         if (btnReg) {
             btnReg.addEventListener('click', async () => {
-                const user = document.getElementById('reg-user').value.trim().toLowerCase();
+                const user = document.getElementById('reg-user').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
                 const name = document.getElementById('reg-name').value.trim();
                 const pass = document.getElementById('reg-pass').value;
+
                 if (!user || !name || !pass) return this.showToast('Preencha todos os campos', 'error');
-                if (pass.length < 4) return this.showToast('Senha muito curta', 'error');
+                if (pass.length < 4) return this.showToast('Senha muito curta (mínimo 4 caracteres)', 'error');
+
                 btnReg.disabled = true;
                 btnReg.textContent = 'Criando...';
+
                 const { data, error } = await this.supabase.auth.signUp({
                     email: user + '@rachas.local',
                     password: pass,
                     options: { data: { username: user, display_name: name } }
                 });
+
                 btnReg.disabled = false;
                 btnReg.textContent = 'Criar conta';
-                if (error) this.showToast(error.message, 'error');
-                else this.showToast('Conta criada! Entrando...');
+
+                if (error) {
+                    this.showToast(error.message, 'error');
+                } else if (data.user && !data.session) {
+                    // Tenta login direto caso a conta já tenha sido criada
+                    await this.supabase.auth.signInWithPassword({
+                        email: user + '@rachas.local',
+                        password: pass
+                    });
+                }
             });
         }
 
@@ -920,7 +980,6 @@ class App {
                     player_target: target,
                     payment_timing: timing,
                     pix_key: pix || null,
-                    payment_info: null,
                     notes: notes || null,
                     price_per_person_cents: pricePerPerson,
                     status: 'open'
@@ -931,7 +990,7 @@ class App {
                     return this.showToast(error.message, 'error');
                 }
 
-                // Organizador entra confirmado automaticamente (decisão 5B)
+                // Organizador entra confirmado automaticamente
                 await this.supabase.from('participations').insert({
                     racha_id: data.id,
                     player_id: this.user.id,
@@ -1016,7 +1075,7 @@ class App {
             fileInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (file.size > 2 * 1024 * 1024) return this.showToast('Arquivo muito grande (máx 2MB)', 'error');
+                if (file.size > 5 * 1024 * 1024) return this.showToast('Arquivo muito grande (máx 5MB)', 'error');
 
                 const myPart = this.getMyParticipation();
                 if (!myPart) return;
@@ -1024,7 +1083,7 @@ class App {
                 uploadArea.innerHTML = '<div class="icon">⏳</div><p>Enviando...</p>';
 
                 const ext = file.name.split('.').pop();
-                const path = `receipts/${this.currentRacha.id}/${myPart.id}_${Date.now()}.${ext}`;
+                const path = `${this.currentRacha.id}/${myPart.id}_${Date.now()}.${ext}`;
 
                 const { error: upError } = await this.supabase.storage
                     .from('receipts')
@@ -1035,19 +1094,14 @@ class App {
                     return this.showToast(upError.message, 'error');
                 }
 
-                const { error: dbError } = await this.supabase.from('receipts').insert({
+                await this.supabase.from('receipts').insert({
                     participation_id: myPart.id,
                     file_path: path,
                     mime_type: file.type,
                     size_bytes: file.size
                 });
 
-                if (dbError) {
-                    uploadArea.innerHTML = '<div class="icon">❌</div><p>Erro ao registrar</p>';
-                    return this.showToast(dbError.message, 'error');
-                }
-
-                // Atualização otimista - a barra sobe na hora
+                // Atualização otimista
                 myPart.status = 'confirmed';
                 myPart.confirmed_at = new Date().toISOString();
                 this.render();
@@ -1088,17 +1142,16 @@ class App {
         const btnConfirmFin = document.getElementById('btn-confirm-finalize');
         if (btnConfirmFin) {
             btnConfirmFin.addEventListener('click', async () => {
-                if (!confirm('Finalizar o racha? Isso fecha tudo e atualiza os rankings.')) return;
+                if (!confirm('Finalizar o racha? Isso consolida os gols e atualiza os rankings.')) return;
 
                 const updates = [];
                 const r = this.currentRacha;
 
-                // Coleta dados da tela
                 document.querySelectorAll('[data-presence-id]').forEach(el => {
                     const id = el.dataset.presenceId;
                     const present = el.querySelector('.present.present') !== null;
                     const absent = el.querySelector('.absent.absent') !== null;
-                    const presence = present ? 'present' : absent ? 'absent' : 'present'; // default present (decisão 9A)
+                    const presence = present ? 'present' : absent ? 'absent' : 'present';
                     updates.push({ id, presence });
                 });
 
@@ -1119,7 +1172,6 @@ class App {
                         else updates.push({ id, paid_after: paid });
                     });
 
-                    // Calcula valor por pessoa no pagamento depois
                     const activeParts = this.participations.filter(p => p.status !== 'removed');
                     const confirmedCount = activeParts.length;
                     const pricePerPerson = confirmedCount > 0 ? Math.ceil(r.field_cost_cents / confirmedCount) : 0;
@@ -1129,12 +1181,10 @@ class App {
                     }
                 }
 
-                // Atualiza participações
                 for (const u of updates) {
                     await this.supabase.from('participations').update(u).eq('id', u.id);
                 }
 
-                // Finaliza racha
                 const { error } = await this.supabase.from('rachas').update({ status: 'finished' }).eq('id', r.id);
                 if (error) return this.showToast(error.message, 'error');
 
@@ -1150,9 +1200,7 @@ class App {
         document.querySelectorAll('.presence-toggle').forEach(el => {
             el.querySelectorAll('.presence-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    el.querySelectorAll('.presence-btn').forEach(b => {
-                        b.classList.remove('present', 'absent');
-                    });
+                    el.querySelectorAll('.presence-btn').forEach(b => b.classList.remove('present', 'absent'));
                     if (btn.dataset.value === 'present') btn.classList.add('present');
                     else btn.classList.add('absent');
                 });
@@ -1182,16 +1230,16 @@ class App {
                 const newOrgName = el.querySelector('.participant-name').textContent;
                 if (!confirm(`Transferir organização para ${newOrgName}?`)) return;
 
-                const { error: err1 } = await this.supabase.from('organizer_transfers').insert({
+                await this.supabase.from('organizer_transfers').insert({
                     racha_id: this.currentRacha.id,
                     from_player_id: this.user.id,
                     to_player_id: newOrgId
                 });
-                if (err1) return this.showToast(err1.message, 'error');
 
                 const { error: err2 } = await this.supabase.from('rachas')
                     .update({ organizer_id: newOrgId })
                     .eq('id', this.currentRacha.id);
+
                 if (err2) return this.showToast(err2.message, 'error');
 
                 this.showToast('Organização transferida!');
@@ -1206,7 +1254,8 @@ class App {
                 const id = btn.dataset.id;
                 const part = this.participations.find(p => p.id === id);
                 if (!part) return;
-                if (!confirm(`Remover ${part.player.display_name} do racha?`)) return;
+                const name = part.player?.display_name || 'Jogador';
+                if (!confirm(`Remover ${name} do racha?`)) return;
 
                 const updates = {
                     status: 'removed',
@@ -1214,7 +1263,6 @@ class App {
                     removed_by: this.user.id
                 };
 
-                // Se já pagou, marca valor a devolver
                 if (part.status === 'confirmed' && part.amount_charged_cents > 0) {
                     updates.refund_owed_cents = part.amount_charged_cents;
                 }
@@ -1237,7 +1285,7 @@ class App {
             });
         });
 
-        // Profile
+        // Perfil
         const btnSaveProfile = document.getElementById('btn-save-profile');
         if (btnSaveProfile) {
             btnSaveProfile.addEventListener('click', async () => {
@@ -1261,7 +1309,7 @@ class App {
             });
         }
 
-        // Ranking tabs
+        // Abas de Rankings
         document.querySelectorAll('#ranking-tabs .tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('#ranking-tabs .tab-btn').forEach(b => b.classList.remove('active'));
@@ -1302,7 +1350,7 @@ class App {
         }
 
         if (error || !data || data.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>Nenhum dado ainda.</p></div>';
+            container.innerHTML = '<div class="empty-state"><p>Nenhum dado registrado ainda.</p></div>';
             return;
         }
 
@@ -1338,6 +1386,13 @@ class App {
     }
 }
 
-// Inicializa
-const app = new App();
-app.init();
+// Inicializa quando a página estiver carregada
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        const app = new App();
+        app.init();
+    });
+} else {
+    const app = new App();
+    app.init();
+}
