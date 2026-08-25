@@ -5,8 +5,8 @@
 // ============================================================
 // CONFIGURAÇÃO - PREENCHA COM SEUS DADOS DO SUPABASE
 // ============================================================
-const SUPABASE_URL = https://molgjdwraurvxffiuqki.supabase.co
-const SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vbGdqZHdyYXVydnhmZml1cWtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2ODUzNzUsImV4cCI6MjEwMzI2MTM3NX0.pSZuxAIXTJUUBo9uyxNR3LvPkXTeW0k6u1-ico-YlQE
+const SUPABASE_URL = 'https://molgjdwraurvxffiuqki.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vbGdqZHdyYXVydnhmZml1cWtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2ODUzNzUsImV4cCI6MjEwMzI2MTM3NX0.pSZuxAIXTJUUBo9uyxNR3LvPkXTeW0k6u1-ico-YlQE';
 
 // ============================================================
 // CLASSE PRINCIPAL
