@@ -1076,7 +1076,7 @@ class App {
             });
         }
 
-        // Upload comprovante
+        // Upload comprovante (Aceita qualquer imagem ou PDF)
         const uploadArea = document.getElementById('receipt-upload');
         const fileInput = document.getElementById('receipt-file');
         if (uploadArea && fileInput) {
@@ -1084,37 +1084,56 @@ class App {
             fileInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                if (file.size > 5 * 1024 * 1024) return this.showToast('Arquivo muito grande (máx 5MB)', 'error');
 
                 const myPart = this.getMyParticipation();
                 if (!myPart) return;
 
                 uploadArea.innerHTML = '<div class="icon">⏳</div><p>Enviando...</p>';
 
-                const ext = file.name.split('.').pop();
-                const path = `${this.currentRacha.id}/${myPart.id}_${Date.now()}.${ext}`;
-
-                const { error: upError } = await this.supabase.storage
-                    .from('receipts')
-                    .upload(path, file, { contentType: file.type, upsert: true });
-
-                if (upError) {
-                    uploadArea.innerHTML = '<div class="icon">❌</div><p>Erro no upload</p>';
-                    return this.showToast(upError.message, 'error');
-                }
-
-                await this.supabase.from('receipts').insert({
-                    participation_id: myPart.id,
-                    file_path: path,
-                    mime_type: file.type,
-                    size_bytes: file.size
-                });
-
+                // 1. Atualização OTIMISTA imediata (A barra sobe na hora)
                 myPart.status = 'confirmed';
                 myPart.confirmed_at = new Date().toISOString();
                 this.render();
-                this.showToast('Comprovante enviado! ✅ Confirmado');
-                await this.loadRachaData();
+                this.showToast('🟢 Confirmado! Enviando arquivo...');
+
+                try {
+                    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+                    const path = `${this.currentRacha.id}/${myPart.id}_${Date.now()}.${ext}`;
+
+                    // Envio para o storage
+                    const { error: upError } = await this.supabase.storage
+                        .from('receipts')
+                        .upload(path, file, { 
+                            contentType: file.type || 'application/octet-stream', 
+                            upsert: true 
+                        });
+
+                    if (upError) throw upError;
+
+                    // Registro na tabela receipts
+                    await this.supabase.from('receipts').insert({
+                        participation_id: myPart.id,
+                        file_path: path,
+                        mime_type: file.type || 'image/jpeg',
+                        size_bytes: file.size || 1024
+                    });
+
+                    // Atualiza no banco que está confirmado e limpa eventual furo
+                    await this.supabase.from('participations')
+                        .update({ 
+                            status: 'confirmed', 
+                            confirmed_at: new Date().toISOString(),
+                            furou_at: null 
+                        })
+                        .eq('id', myPart.id);
+
+                    this.showToast('Arquivo enviado com sucesso! ✅ Confirmado');
+                    await this.loadRachaData();
+                } catch (err) {
+                    console.error('Erro no upload:', err);
+                    this.showToast('Erro no envio do arquivo: ' + (err.message || 'Tente novamente'), 'error');
+                    await this.loadRachaData();
+                }
             });
         }
 
