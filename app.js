@@ -24,7 +24,6 @@ class App {
 
     async init() {
         try {
-            // Verifica se a biblioteca carregou
             if (typeof window.supabase === 'undefined') {
                 console.error('Biblioteca do Supabase não foi carregada.');
                 this.navigate('auth');
@@ -33,7 +32,6 @@ class App {
 
             this.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // Timeout de segurança: se o Supabase não responder em 3s, abre a tela de login
             const sessionPromise = this.supabase.auth.getSession();
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
 
@@ -87,7 +85,6 @@ class App {
             if (!error && data) {
                 this.profile = data;
             } else {
-                // Se o perfil ainda não existir, cria localmente a partir dos metadados
                 this.profile = {
                     id: this.user.id,
                     username: this.user.user_metadata?.username || this.user.email.split('@')[0],
@@ -233,11 +230,16 @@ class App {
             default: html = this.renderHome();
         }
 
-        app.innerHTML = html;
-        this.attachListeners();
-
+        // Junta a barra de navegação antes de colocar na tela para NÃO apagar os cliques
         if (this.navVisible) {
-            app.innerHTML += this.renderBottomNav();
+            html += this.renderBottomNav();
+        }
+
+        app.innerHTML = html;
+
+        // Anexa os cliques depois que tudo já está no DOM
+        this.attachListeners();
+        if (this.navVisible) {
             this.attachNavListeners();
         }
     }
@@ -634,7 +636,7 @@ class App {
                     <button class="tab-btn" data-tab="furoes">🐔 Furões</button>
                 </div>
                 <div id="ranking-content">
-                    <div class="loading" style="text-align:center;padding:40px;">Carregando rankings...</div>
+                    <div class="loading" style="text-align:center;padding:40px;color:var(--text-muted);">Carregando rankings...</div>
                 </div>
             </div>
         </div>`;
@@ -922,7 +924,6 @@ class App {
                 if (error) {
                     this.showToast(error.message, 'error');
                 } else if (data.user && !data.session) {
-                    // Tenta login direto caso a conta já tenha sido criada
                     await this.supabase.auth.signInWithPassword({
                         email: user + '@rachas.local',
                         password: pass
@@ -931,12 +932,20 @@ class App {
             });
         }
 
-        // Criar racha
+        // Criar racha (+ Criar Racha)
         const btnCreate = document.getElementById('btn-create-racha');
-        if (btnCreate) btnCreate.addEventListener('click', () => this.navigate('create-racha'));
+        if (btnCreate) {
+            btnCreate.addEventListener('click', () => {
+                this.navigate('create-racha');
+            });
+        }
 
         const btnBack = document.getElementById('btn-back');
-        if (btnBack) btnBack.addEventListener('click', () => this.navigate('home'));
+        if (btnBack) {
+            btnBack.addEventListener('click', () => {
+                this.navigate('home');
+            });
+        }
 
         // Toggle pagamento
         document.querySelectorAll('.toggle-group .toggle-btn').forEach(btn => {
@@ -1101,7 +1110,6 @@ class App {
                     size_bytes: file.size
                 });
 
-                // Atualização otimista
                 myPart.status = 'confirmed';
                 myPart.confirmed_at = new Date().toISOString();
                 this.render();
@@ -1200,7 +1208,9 @@ class App {
         document.querySelectorAll('.presence-toggle').forEach(el => {
             el.querySelectorAll('.presence-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    el.querySelectorAll('.presence-btn').forEach(b => b.classList.remove('present', 'absent'));
+                    el.querySelectorAll('.presence-btn').forEach(b => {
+                        b.classList.remove('present', 'absent');
+                    });
                     if (btn.dataset.value === 'present') btn.classList.add('present');
                     else btn.classList.add('absent');
                 });
@@ -1336,53 +1346,111 @@ class App {
         });
     }
 
+    // ============================================================
+    // CARREGAMENTO ROBUSTO DE RANKINGS DIRETO DAS TABELAS
+    // ============================================================
     async loadRankingData(type) {
         const container = document.getElementById('ranking-content');
         if (!container) return;
 
-        let data, error;
-        if (type === 'gols') {
-            ({ data, error } = await this.supabase.from('ranking_gols').select('*'));
-        } else if (type === 'presenca') {
-            ({ data, error } = await this.supabase.from('ranking_presenca').select('*'));
-        } else {
-            ({ data, error } = await this.supabase.from('ranking_furoes').select('*'));
-        }
+        try {
+            // Busca apenas dados de rachas finalizados
+            const { data: participations, error } = await this.supabase
+                .from('participations')
+                .select('goals, presence, status, player:player_id(id, display_name), racha:racha_id(id, status)')
+                .eq('racha.status', 'finished');
 
-        if (error || !data || data.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>Nenhum dado registrado ainda.</p></div>';
-            return;
-        }
-
-        let html = '<div class="ranking-list">';
-        data.forEach((item, idx) => {
-            const posClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : 'normal';
-            const posLabel = idx < 3 ? ['🥇','🥈','🥉'][idx] : (idx + 1);
-            let stats = '', value = '';
-
-            if (type === 'gols') {
-                value = `${item.total_gols} gols`;
-                stats = `${item.total_rachas_confirmado} rachas • ${item.media_gols} gol/racha`;
-            } else if (type === 'presenca') {
-                value = `${item.total_presencas} presenças`;
-                stats = `${item.total_confirmados} confirmados`;
-            } else {
-                value = `${item.total_furadas} furadas`;
-                stats = `${item.total_rachas} rachas • ${item.taxa_furadas}%`;
+            if (error || !participations || participations.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">🏆</div><p>Nenhum racha foi finalizado ainda.<br>Os rankings aparecerão após o primeiro racha finalizado!</p></div>';
+                return;
             }
 
-            html += `
-            <div class="ranking-item">
-                <div class="ranking-position ${posClass}">${posLabel}</div>
-                <div class="ranking-info">
-                    <div class="ranking-name">${this.escapeHtml(item.display_name)}</div>
-                    <div class="ranking-stats">${stats}</div>
-                </div>
-                <div class="ranking-value">${value}</div>
-            </div>`;
-        });
-        html += '</div>';
-        container.innerHTML = html;
+            const playerMap = {};
+
+            participations.forEach(p => {
+                const pid = p.player?.id;
+                if (!pid) return;
+
+                if (!playerMap[pid]) {
+                    playerMap[pid] = {
+                        display_name: p.player.display_name || 'Jogador',
+                        total_gols: 0,
+                        total_presencas: 0,
+                        total_confirmados: 0,
+                        total_furadas: 0,
+                        total_rachas: 0
+                    };
+                }
+
+                playerMap[pid].total_rachas += 1;
+
+                if (p.status === 'confirmed') {
+                    playerMap[pid].total_confirmados += 1;
+                    playerMap[pid].total_gols += p.goals || 0;
+                    if (p.presence === 'present' || !p.presence) {
+                        playerMap[pid].total_presencas += 1;
+                    }
+                } else if (p.status === 'furou') {
+                    playerMap[pid].total_furadas += 1;
+                }
+            });
+
+            const list = Object.values(playerMap);
+
+            if (list.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">🏆</div><p>Nenhum dado registrado ainda.</p></div>';
+                return;
+            }
+
+            let sorted = [];
+
+            if (type === 'gols') {
+                sorted = list.sort((a, b) => b.total_gols - a.total_gols);
+            } else if (type === 'presenca') {
+                sorted = list.sort((a, b) => b.total_presencas - a.total_presencas);
+            } else {
+                sorted = list.filter(p => p.total_furadas > 0).sort((a, b) => b.total_furadas - a.total_furadas);
+                if (sorted.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><div class="icon">🎉</div><p>Nenhum furão registrado! A galera está comprometida!</p></div>';
+                    return;
+                }
+            }
+
+            let html = '<div class="ranking-list">';
+            sorted.forEach((item, idx) => {
+                const posClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : 'normal';
+                const posLabel = idx < 3 ? ['🥇','🥈','🥉'][idx] : (idx + 1);
+                let stats = '', value = '';
+
+                if (type === 'gols') {
+                    const media = item.total_confirmados > 0 ? (item.total_gols / item.total_confirmados).toFixed(2) : '0.00';
+                    value = `${item.total_gols} gols`;
+                    stats = `${item.total_confirmados} rachas • ${media} gol/racha`;
+                } else if (type === 'presenca') {
+                    value = `${item.total_presencas} jogos`;
+                    stats = `${item.total_confirmados} confirmados`;
+                } else {
+                    const taxa = item.total_rachas > 0 ? ((item.total_furadas / item.total_rachas) * 100).toFixed(1) : '0.0';
+                    value = `${item.total_furadas} furadas`;
+                    stats = `${item.total_rachas} rachas • ${taxa}% taxa`;
+                }
+
+                html += `
+                <div class="ranking-item">
+                    <div class="ranking-position ${posClass}">${posLabel}</div>
+                    <div class="ranking-info">
+                        <div class="ranking-name">${this.escapeHtml(item.display_name)}</div>
+                        <div class="ranking-stats">${stats}</div>
+                    </div>
+                    <div class="ranking-value">${value}</div>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (err) {
+            console.error('Erro nos rankings:', err);
+            container.innerHTML = '<div class="empty-state"><p>Nenhum dado registrado ainda.</p></div>';
+        }
     }
 }
 
