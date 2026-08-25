@@ -1,0 +1,1069 @@
+
+CONTINUAÇÃO DO PROJETO — SISTEMA DE RACHAS DA EMPRESA
+Quero que você continue comigo o desenvolvimento de um sistema web para organizar os jogos de futebol amador da empresa, chamados de rachas.
+IMPORTANTE: não use "rachás". O correto neste projeto é:
+
+singular: racha
+plural: rachas
+O sistema será usado principalmente pelo celular, mas também precisa funcionar bem em PC e tablet.
+A prioridade é que seja extremamente simples de usar. A pessoa deve abrir um único link, encontrar o racha atual e conseguir participar rapidamente.
+OBJETIVO DO SISTEMA
+O sistema deve organizar os rachas da empresa.
+Ele precisa controlar:
+criação de racha;
+data;
+horário;
+local;
+custo do campo;
+meta de jogadores;
+participantes;
+pagamento;
+comprovantes;
+confirmação automática;
+excedente ou déficit;
+presença;
+faltas;
+gols;
+artilheiro;
+ranking de gols;
+ranking de presença;
+ranking de furões;
+histórico dos jogadores;
+organizador;
+transferência de organização;
+encerramento e reabertura das inscrições;
+finalização do racha.
+O sistema deve ser simples e visual.
+ACESSO AO SISTEMA
+Todos utilizam o mesmo link.
+NÃO quero um link diferente para cada racha.
+Ao abrir o sistema:
+Se existe um racha ativo:
+Mostrar diretamente o racha atual.
+Exemplo:
+⚽ RACHA DA FIRMA
+Sexta-feira • 20:00
+📍 Arena X
+🎯 Meta: 12 jogadores
+[barra de progresso]
+12/12 confirmados
+💰 R$ 20,00 por pessoa
+[ PARTICIPAR ]
+Se não existe racha ativo:
+Mostrar:
+⚽ Nenhum racha ativo
+[ + CRIAR RACHA ]
+CONTA DOS JOGADORES
+Não quero sistema tradicional de login.
+Não quero:
+senha;
+e-mail;
+SMS;
+código de confirmação;
+autenticação complicada.
+A pessoa informa:
+nome;
+número de WhatsApp.
+O WhatsApp será o identificador principal da pessoa no banco.
+O número de WhatsApp fica privado e só o organizador consegue visualizar.
+Os outros participantes veem apenas o nome.
+REGRA IMPORTANTE DO WHATSAPP
+O nome NÃO é o identificador da pessoa.
+O WhatsApp é o identificador.
+Exemplo:
+Primeiro acesso:
+Nome: Rodrigo
+WhatsApp: 11999999999
+Depois a mesma pessoa entra em outro aparelho:
+Nome: Rogério
+WhatsApp: 11999999999
+O sistema deve reconhecer que é a mesma pessoa e atualizar o nome dela para "Rogério".
+Todo o histórico continua vinculado à mesma pessoa:
+gols;
+presença;
+rachas;
+furadas;
+artilharias.
+Aceitei uma proteção simples para isso:
+Quando o sistema encontrar um WhatsApp já cadastrado, deve informar:
+"Este WhatsApp já está cadastrado como Rodrigo."
+E permitir:
+[ SOU EU ]
+A ideia é evitar alterações acidentais, sem criar senha ou SMS.
+CRIAÇÃO DO RACHA
+Qualquer pessoa pode clicar:
+CRIAR RACHA
+O criador se torna o organizador daquele racha.
+O formulário deve permitir:
+data;
+horário;
+local;
+valor total do campo;
+meta de jogadores;
+forma de pagamento;
+chave Pix, quando necessário;
+observações.
+A meta de jogadores NÃO é um limite máximo.
+Exemplo:
+Meta = 12.
+Pode entrar:
+12
+13
+14
+15
+16
+17...
+A barra continua crescendo depois da meta.
+APENAS UM RACHA ATIVO
+Só existe um racha ativo por vez.
+Porém, qualquer pessoa pode criar outro quando não houver racha ativo.
+Não haverá lista de espera.
+ORGANIZADOR
+Quem cria o racha é o organizador.
+O organizador pode:
+editar o racha;
+alterar data;
+alterar horário;
+alterar local;
+alterar custo;
+alterar Pix;
+remover participantes;
+encerrar inscrições;
+reabrir inscrições;
+finalizar o racha;
+corrigir gols;
+transferir a organização.
+A organização pode ser transferida para outra pessoa.
+Isso é importante caso o criador não possa comparecer.
+BARRA DE META DE JOGADORES
+Esta é uma das partes MAIS IMPORTANTES da experiência.
+A barra deve contar SOMENTE quem está:
+🟢 CONFIRMADO
+No pagamento antecipado, isso significa quem efetivamente enviou o comprovante.
+Quem apenas clicou em participar e ainda não enviou o comprovante NÃO conta na barra.
+Exemplo:
+Meta = 12
+Confirmados = 7
+A barra mostra:
+7/12
+Se alguém enviar o comprovante:
+7/12 → 8/12
+A atualização precisa acontecer em tempo real para todos.
+IMPORTANTE:
+A barra precisa ser extremamente responsiva.
+Quando o próprio jogador anexar o comprovante, ele precisa perceber visualmente quase imediatamente que sua contribuição fez a barra aumentar.
+Não quero uma experiência em que a pessoa envia o comprovante e fica esperando vários segundos até a barra atualizar.
+Quando o comprovante for enviado:
+registrar o pagamento;
+mudar para confirmado;
+atualizar o banco;
+atualizar a interface;
+aumentar a barra com uma animação suave;
+atualizar o contador.
+Tudo sem recarregar a página.
+Use recursos de atualização em tempo real do Supabase ou outra solução adequada.
+A sensação deve ser:
+"Eu acabei de contribuir e vi a meta aumentar."
+META ULTRAPASSADA
+Se a meta for 12 e existirem 15 confirmados:
+Mostrar algo como:
+🎯 Meta: 12
+15 confirmados
+META ATINGIDA 🎉
+A barra continua mostrando o crescimento mesmo depois da meta.
+A meta continua visualmente marcada.
+PAGAMENTO ANTES DO RACHA
+Ao criar o racha, o organizador escolhe:
+Pagamento:
+Antes do racha
+Depois do racha
+Se escolher ANTES:
+O organizador informa:
+Valor do campo:
+R$ 240
+Meta:
+12 jogadores
+O sistema calcula:
+R$ 240 ÷ 12 = R$ 20
+O valor oficial daquele racha será:
+R$ 20 por pessoa.
+IMPORTANTE:
+Esse valor fica CONGELADO.
+Se entrarem mais pessoas depois:
+12 pessoas = R$ 20 cada
+15 pessoas = R$ 20 cada
+18 pessoas = R$ 20 cada
+O sistema NÃO recalcula o valor individual.
+Todos pagam o mesmo valor definido no início.
+EXCEDENTE
+Exemplo:
+Campo = R$ 240
+17 pessoas pagaram R$ 20.
+Total:
+R$ 340
+Excedente:
+R$ 100
+O sistema deve calcular automaticamente.
+Para os participantes:
+Mostrar:
+Valor do racha: R$ 240
+Valor por pessoa: R$ 20
+Valor arrecadado: R$ 340
+Excedente: R$ 100
+Não precisa mostrar para os participantes quanto cada um teria direito a receber.
+Para o organizador:
+Mostrar também:
+Excedente: R$ 100
+17 participantes
+Valor proporcional por participante: R$ 5,88 aproximadamente
+O sistema não deve devolver dinheiro automaticamente.
+O grupo decide o que fazer com o excedente.
+Não é necessário criar botão de "excedente resolvido".
+DÉFICIT
+Exemplo:
+Campo = R$ 240
+Somente 10 pessoas pagaram R$ 20.
+Total:
+R$ 200
+Faltam:
+R$ 40
+Mostrar:
+⚠️ Faltam R$ 40 para cobrir o custo do campo.
+Para o organizador:
+🔴 Déficit: R$ 40
+Para os participantes:
+⚠️ O valor arrecadado ainda não cobre o custo do racha.
+O sistema não deve decidir como resolver.
+CENTAVOS
+Quando houver divisões que produzam frações de centavo, o sistema precisa arredondar corretamente.
+A soma final deve permanecer matematicamente correta.
+Não pode criar diferenças inexplicáveis de centavos.
+PAGAMENTO ANTECIPADO — PARTICIPAÇÃO
+Quando o jogador clicar:
+[ PARTICIPAR ]
+Mostrar:
+Valor:
+R$ 20,00
+Pix:
+[chave cadastrada pelo organizador]
+[ COPIAR PIX ]
+[ ANEXAR COMPROVANTE ]
+Antes do comprovante:
+🟡 Aguardando pagamento
+Depois que o comprovante for anexado:
+🟢 Confirmado
+NÃO existe:
+pagamento em análise;
+aprovação manual;
+pagamento recusado;
+status cancelado.
+O comprovante automaticamente transforma a pessoa em confirmada.
+COMPROVANTE
+O comprovante deve ser armazenado online.
+Sugestão já discutida:
+Supabase Storage.
+O organizador consegue visualizar o comprovante.
+Os demais participantes NÃO devem conseguir visualizar o comprovante dos outros.
+FURÃO
+"Furão" é uma pessoa que:
+clicou em participar;
+escolheu participar de um racha com pagamento antecipado;
+não enviou o comprovante;
+chegou ao momento de encerramento das inscrições sem pagamento.
+Quando o organizador clicar:
+🔒 ENCERRAR INSCRIÇÕES
+Quem estiver:
+🟡 Aguardando pagamento
+passa a ser:
+🐔 Furou
+Mas continua registrado no racha.
+IMPORTANTE:
+Se essa pessoa enviar o comprovante depois:
+🟢 Confirmado
+E o sistema deve automaticamente remover o furo.
+CANCELAMENTO
+O participante NÃO pode cancelar a própria entrada.
+Somente o organizador pode remover/cancelar a entrada de alguém.
+Isso é proposital para criar compromisso.
+Se alguém pagou antecipadamente e o organizador remove essa pessoa, o sistema deve registrar que existe valor a devolver.
+O sistema não movimenta dinheiro; apenas registra/calcula.
+PAGAMENTO DEPOIS DO RACHA
+Se o organizador escolher:
+Pagamento: DEPOIS
+A pessoa não envia comprovante na entrada.
+Ela simplesmente:
+[ PARTICIPAR ]
+e fica:
+🟢 Confirmado
+A barra aumenta imediatamente.
+O valor mostrado durante as inscrições pode ser:
+💰 Valor estimado: R$ XX
+Mas esse valor NÃO é definitivo.
+REGRA DO PAGAMENTO DEPOIS
+A lógica recomendada e aprovada é:
+O valor final é calculado quando o racha for encerrado/finalizado.
+Porém:
+QUEM CONFIRMOU A PARTICIPAÇÃO E NÃO COMPARECEU CONTINUA RESPONSÁVEL PELO PAGAMENTO.
+Exemplo:
+Campo = R$ 240
+12 pessoas confirmaram.
+10 foram jogar.
+2 faltaram.
+As 12 continuam responsáveis.
+R$ 240 ÷ 12 = R$ 20 por pessoa.
+Os faltosos também devem pagar.
+Isso evita que quem compareceu pague pelos faltosos.
+ENCERRAR INSCRIÇÕES
+Existem duas ações diferentes:
+🔒 Encerrar inscrições
+e
+🏁 Finalizar racha
+Encerrar inscrições:
+impede novas pessoas de entrar;
+não encerra o racha definitivamente.
+Finalizar racha:
+acontece depois do jogo;
+registra presença;
+registra gols;
+fecha resultados;
+atualiza rankings.
+REABRIR INSCRIÇÕES
+Depois de encerrar, o organizador pode:
+[ REABRIR INSCRIÇÕES ]
+Assim as pessoas podem voltar a entrar.
+GOLS
+Depois do racha, cada jogador informa seus próprios gols.
+Exemplo:
+Rodrigo: 4
+João: 2
+Pedro: 1
+O organizador pode corrigir.
+Depois de finalizado:
+SOMENTE O ORGANIZADOR pode alterar os gols.
+ARTILHEIRO DO RACHA
+O sistema calcula automaticamente quem marcou mais gols.
+Exemplo:
+🥇 Rodrigo — 4 gols
+Se houver empate:
+🥇 Rodrigo — 4 gols
+🥇 João — 4 gols
+Os dois são considerados artilheiros.
+RANKINGS
+Haverá uma tela:
+🏆 RANKINGS
+Com três rankings principais.
+⚽ Ranking de gols
+Mostrar:
+posição;
+jogador;
+gols totais;
+quantidade de rachas;
+média de gols.
+Exemplo:
+🥇 Rodrigo
+37 gols
+24 rachas
+1,54 gol/racha
+🏃 Ranking de presença
+Mostrar quem mais participou dos rachas.
+🐔 Ranking de furões
+Mostrar:
+quantidade de furadas;
+quantidade de rachas;
+taxa de furadas.
+Exemplo:
+🥇 Carlos
+5 furadas
+18 rachas
+27,8%
+Não criar ranking de "confiabilidade".
+PERFIL
+Cada jogador terá um perfil simples.
+Exemplo:
+Rodrigo
+⚽ 37 gols
+🏃 24 participações
+🐔 2 furadas
+🥇 3 artilharias
+Média:
+1,54 gol/racha
+O histórico deve ser vinculado ao WhatsApp, não ao nome.
+PRESENÇA
+Depois do jogo, o organizador registra quem realmente participou.
+Isso alimenta o ranking de presença.
+Uma pessoa que confirmou mas não compareceu deve ser registrada como falta.
+No pagamento depois, ela continua responsável pelo pagamento.
+INTERFACE
+O sistema deve ser pensado PRIMEIRO para celular.
+Quero uma interface moderna, limpa e simples.
+Não quero aparência de sistema empresarial antigo.
+Quero algo que pareça um pequeno aplicativo.
+Navegação principal:
+⚽ Racha
+🏆 Rankings
+👤 Perfil
+A navegação pode ficar na parte inferior no celular.
+No PC/tablet, adaptar responsivamente.
+TECNOLOGIA
+Minha ideia inicial:
+Frontend:
+HTML + CSS + JavaScript
+Banco:
+Supabase
+Storage:
+Supabase Storage
+Hospedagem:
+Inicialmente pensei em GitHub Pages, mas você deve avaliar se existe uma opção melhor para esse projeto.
+Não assuma que GitHub Pages é obrigatoriamente a melhor escolha.
+Quero que você avalie a arquitetura antes de implementar.
+ATUALIZAÇÃO EM TEMPO REAL
+Esse é um requisito obrigatório.
+Quando alguém confirma:
+a lista deve atualizar;
+a quantidade deve atualizar;
+a barra deve crescer;
+o status deve mudar;
+tudo deve aparecer para os outros usuários sem precisar atualizar a página.
+Especialmente para quem acabou de enviar o comprovante:
+A barra precisa crescer rapidamente diante dos olhos do usuário.
+A implementação deve priorizar baixa latência e uma atualização visual imediata.
+SEGURANÇA
+Mesmo sendo um sistema informal, precisamos impedir que qualquer participante consiga:
+editar outro jogador;
+alterar o custo;
+alterar o racha;
+remover alguém;
+modificar gols;
+visualizar comprovantes privados;
+assumir organização sem permissão.
+O organizador deve ter permissões específicas.
+Não quero uma solução em que o frontend simplesmente esconda botões e qualquer pessoa possa fazer a mesma operação pelo navegador.
+Use as regras de segurança do Supabase/RLS corretamente.
+O QUE EU QUERO DE VOCÊ AGORA
+NÃO comece simplesmente escrevendo código.
+Primeiro faça uma análise técnica do projeto com base em tudo acima.
+Depois apresente:
+arquitetura recomendada;
+tecnologia recomendada;
+hospedagem recomendada;
+estrutura de pastas;
+modelo completo do banco Supabase;
+tabelas;
+campos de cada tabela;
+relacionamentos;
+políticas de segurança/RLS;
+fluxo de autenticação simples por WhatsApp;
+fluxo de criação de racha;
+fluxo de pagamento antecipado;
+fluxo de pagamento posterior;
+fluxo de furão;
+fluxo de encerramento;
+fluxo de finalização;
+fluxo de gols;
+fluxo dos rankings;
+funcionamento da atualização em tempo real;
+funcionamento da barra de progresso;
+tratamento de centavos;
+tratamento de excedente;
+tratamento de déficit;
+transferência de organização.
+Depois disso, faça uma revisão crítica e procure contradições nas regras.
+Se encontrar alguma, NÃO invente uma decisão sozinho. Aponte a contradição e me pergunte.
+Só depois que eu aprovar a arquitetura devemos começar a escrever os arquivos.
+REGRA SOBRE O CÓDIGO
+Quando começarmos a programar, quero o código COMPLETO dos arquivos.
+Não faça:
+...
+para esconder partes do código.
+Se for necessário substituir um arquivo inteiro, mostre o arquivo inteiro.
+Se for necessário alterar uma parte específica, diga exatamente:
+
+onde encontrar;
+o código completo que deve ser removido;
+o código completo que deve ser colocado.
+Quero conseguir fazer as alterações mesmo sem ser programador avançado.
+NÃO PERCA ESTES REQUISITOS
+Alguns pontos são especialmente importantes e não podem ser esquecidos:
+O correto é racha/rachas, nunca "rachás".
+Um único link/sistema para todos.
+Apenas um racha ativo por vez.
+Qualquer pessoa pode criar um novo racha quando não houver ativo.
+Conta simples usando nome + WhatsApp.
+WhatsApp identifica o jogador.
+WhatsApp é privado e só o organizador vê.
+Nome pode mudar e o histórico continua.
+Pagamento pode ser antes ou depois.
+Pagamento antecipado gera valor fixo no momento da criação.
+Pessoas novas continuam pagando o mesmo valor fixado originalmente.
+Excedente é calculado, não devolvido automaticamente.
+Déficit é calculado e informado.
+Comprovante enviado = confirmação automática.
+Sem comprovante = aguardando pagamento.
+Ao encerrar inscrições, quem não pagou vira furão.
+Se o furão pagar depois, o furo é removido automaticamente.
+Participante não pode cancelar sozinho.
+Organizador pode remover.
+Organizador pode transferir a organização.
+Pode encerrar e reabrir inscrições.
+Pode finalizar o racha.
+Pagamento posterior considera o compromisso assumido pela confirmação.
+Quem confirmou e faltou continua responsável pelo pagamento.
+Gols são informados pelos jogadores.
+Somente organizador pode corrigir gols depois da finalização.
+Existe ranking de gols.
+Existe ranking de presença.
+Existe ranking de furões.
+Existe taxa de furadas.
+Existe artilheiro por racha.
+Empates no artilheiro são permitidos.
+A barra conta somente confirmados.
+A barra continua crescendo depois da meta.
+A meta fica visualmente marcada.
+A barra deve atualizar em tempo real.
+A barra deve responder MUITO rapidamente após o envio do comprovante.
+O sistema deve dar sensação visual de contribuição imediata.
+Não usar lista de espera.
+Não criar ranking de confiabilidade.
+Prioridade absoluta para experiência no celular.
+Comece agora pela análise técnica e arquitetura, não pelo código.
+
+Trabalhou por 4m 59s
+Análise primeiro, código depois — como você pediu. Abaixo está a arquitetura completa e, no final, as contradições que não vou decidir sozinho.
+
+Análise técnica
+O sistema é um app compartilhado de um único link, com um racha vivo, dinheiro, comprovantes privados e rankings. Não é uma página estática.
+
+Três exigências puxam a arquitetura:
+
+Segurança real — WhatsApp e comprovante não podem ir para o navegador de todo mundo. Esconder botão no celular não é segurança.
+Barra imediata — quem anexa o comprovante precisa ver a meta subir na hora, sem recarregar.
+Identidade simples — nome + WhatsApp, sem senha, e-mail ou SMS.
+Sua ideia inicial (HTML + Supabase + GitHub Pages) funciona num projeto à parte. Aqui ela quebra em três pontos:
+
+Ideia inicial	Problema	Decisão
+GitHub Pages	Só serve arquivo estático. Sem servidor, o WhatsApp e o comprovante vazam no celular de qualquer um, e qualquer pessoa altera o racha pelo navegador.	Não usar. O app precisa de servidor.
+Supabase + RLS	Boa ideia em tese. Neste app o Postgres já vem ligado na publicação, sem você criar conta, chave ou projeto extra.	Postgres no servidor, com as regras de permissão no servidor (equivalente ao RLS).
+HTML + JS puro	Dá para fazer, mas rankings, upload, barra animada e tela ao vivo ficam mais frágeis.	App moderno (React), visual de aplicativo, pensado no celular.
+O cliente nunca fala com o banco. O celular só chama o servidor. O servidor confere quem é você e só então lê ou grava. Isso atende o item 30 melhor do que RLS no frontend.
+
+1. Arquitetura recomendada
+Celular / PC
+    │
+    │  um único link
+    ▼
+App (telas + barra animada)
+    │
+    │  pedidos autenticados
+    ▼
+Servidor (todas as regras de negócio e permissão)
+    │
+    ├── Banco Postgres (jogadores, rachas, gols, dinheiro)
+    └── Comprovantes (arquivo privado, só o organizador baixa)
+Três camadas:
+
+App — o que a pessoa vê. Atualiza a barra na hora (otimista) e depois confirma com o servidor.
+Servidor — única porta para criar racha, participar, anexar comprovante, encerrar, finalizar, ver WhatsApp.
+Banco — fonte da verdade. Dinheiro sempre em centavos inteiros, nunca em vírgula flutuante.
+Não existe um link por racha. A tela inicial pergunta ao servidor: “tem racha ativo?” e mostra o atual ou o botão de criar.
+
+2. Tecnologia recomendada
+Camada	Escolha	Por quê
+Telas	React + navegação por rotas	App de verdade, não site de 2005
+Visual	CSS moderno, mobile-first	Celular primeiro, PC/tablet depois
+Servidor	Funções no próprio app	Permissão de verdade, não botão escondido
+Banco	Postgres	Dados duráveis, um racha ativo por restrição do banco
+Arquivos	Comprovante no banco, privado	Sem serviço extra; só o organizador acessa
+Identidade	Nome + WhatsApp + sessão no aparelho	Sem senha, sem e-mail, sem SMS
+Tempo real	Atualização otimista + refresh curto	A barra sobe na hora para quem pagou; os outros veem em ~1–2 s
+Por que não Supabase Realtime? O banco publicado aqui não tem canal ao vivo nativo. A sensação que você descreveu (“eu contribuí e vi a meta aumentar”) vem da atualização otimista: no instante do anexo, a barra já anima no seu celular. O servidor grava em seguida. Os outros aparelhos acompanham no ciclo curto. Isso é mais rápido para quem pagou do que esperar o push.
+
+3. Hospedagem recomendada
+Não GitHub Pages. Sem servidor não dá para:
+
+esconder WhatsApp
+esconder comprovante
+impedir que qualquer um edite o racha
+ter um único racha ativo de verdade
+Recomendação: publicar o próprio app (já sai com servidor + banco). Um link só, para todo mundo.
+
+4. Estrutura de pastas
+src/
+  routes/
+    __root.tsx              # casca do app + navegação
+    index.tsx               # ⚽ Racha atual (ou criar)
+    rankings.tsx            # 🏆 Rankings
+    perfil.tsx              # 👤 Perfil
+    racha/
+      criar.tsx
+      editar.tsx
+      comprovante.tsx       # fluxo Pix + anexo
+      finalizar.tsx         # presença + gols
+  components/
+    racha/                  # card, barra, lista, ações do organizador
+    rankings/
+    perfil/
+    identity/               # nome + WhatsApp + “Sou eu”
+    ui/                     # botões, modal, etc.
+  lib/
+    money.ts                # centavos, arredondamento, excedente/déficit
+    whatsapp.ts             # normalizar número
+    racha-status.ts         # regras de estado
+    server/                 # criar, participar, pagar, encerrar, finalizar
+  styles.css
+migrations/
+  0002_rachas.sql           # tabelas do sistema
+Navegação fixa embaixo no celular: Racha · Rankings · Perfil. No PC, a mesma ordem, adaptada.
+
+5–8. Modelo do banco
+Dinheiro em centavos (integer). WhatsApp só dígitos. Um racha ativo imposto pelo banco, não só pela tela.
+
+players — a pessoa (identificada pelo WhatsApp)
+Campo	Tipo	Regra
+id	texto	chave
+name	texto	pode mudar; histórico não muda
+whatsapp	texto único	só dígitos; privado
+created_at / updated_at	data/hora	
+O nome não identifica. Se o WhatsApp já existe, é a mesma pessoa.
+
+player_sessions — “estou logado neste aparelho”
+Campo	Tipo	Regra
+id	texto	
+player_id	texto → players	
+token_hash	texto único	cookie httpOnly; o token cru não fica no banco
+expires_at	data/hora	sessão longa (app casual)
+created_at / last_seen_at	data/hora	
+Isso não é senha. É só para o aparelho não pedir nome/WhatsApp a cada clique, e para o servidor saber quem está agindo.
+
+rachas
+Campo	Tipo	Regra
+id	texto	
+organizer_id	texto → players	dono atual
+match_date	data	
+match_time	hora	
+location	texto	
+field_cost_cents	inteiro ≥ 0	valor do campo
+player_target	inteiro ≥ 1	meta, não teto
+payment_timing	before | after	
+pix_key	texto opcional	obrigatório se pagamento antes
+payment_info	texto opcional	forma de pagamento
+notes	texto opcional	
+price_per_person_cents	inteiro	congelado se antes; definido na finalização se depois
+status	open | closed | finished	
+created_at / updated_at		
+inscriptions_closed_at	opcional	
+finished_at	opcional	
+Restrição: no máximo um racha com status open ou closed. Racha finished libera a criação do próximo.
+
+Ativo = ainda não finalizado (open ou closed). Encerrar inscrições não destrava um racha novo.
+
+participations — entrada de uma pessoa num racha
+Campo	Tipo	Regra
+id	texto	
+racha_id	texto → rachas	
+player_id	texto → players	único por racha
+status	awaiting_payment | confirmed | furou | removed	
+presence	present | absent | vazio	só depois do jogo
+goals	inteiro ≥ 0	
+amount_charged_cents	inteiro	o que essa pessoa deve
+refund_owed_cents	inteiro	se o organizador removeu quem já pagou
+joined_at		
+confirmed_at	opcional	
+furou_at	opcional	
+removed_at / removed_by	opcional	só organizador remove
+A barra conta somente confirmed.
+
+receipts — comprovante privado
+Campo	Tipo	Regra
+id	texto	
+participation_id	texto único	um comprovante vigente
+mime	texto	imagem (e PDF, se você autorizar)
+bytes	binário	não entra na listagem
+size_bytes	inteiro	teto (ex.: 2 MB)
+created_at		
+Nunca vai na lista pública. Só endpoint do organizador.
+
+organizer_transfers — auditoria
+Campo	Tipo
+id	texto
+racha_id	texto
+from_player_id	texto
+to_player_id	texto
+transferred_at	data/hora
+O racha aponta sempre para o organizador atual.
+
+Relacionamentos
+players 1──N rachas (como organizador)
+players 1──N participations
+rachas  1──N participations
+participations 1──0..1 receipts
+rachas  1──N organizer_transfers
+Rankings não são tabela. São consulta sobre rachas finished.
+
+9. Segurança (equivalente ao RLS)
+O banco não é público. Toda regra abaixo vive no servidor.
+
+Quem	Pode	Não pode
+Visitante (sem se identificar)	Ver racha ativo (sem WhatsApp, sem comprovante), ver rankings públicos	Participar, criar, editar, ver dados privados
+Jogador identificado	Participar, ver o próprio perfil/histórico, informar os próprios gols antes de finalizar, anexar o próprio comprovante	Ver WhatsApp alheio, ver comprovante alheio, editar o racha, remover alguém, mudar gols de outro, assumir organização
+Organizador do racha atual	Tudo do jogador + editar racha, remover gente, encerrar/reabrir, finalizar, corrigir gols, ver WhatsApp e comprovantes daquele racha, transferir organização	Agir como organizador de racha que não é dele
+Ex-organizador	Volta a ser jogador comum	Ver comprovantes / WhatsApp depois da transferência
+Detalhes que o servidor garante:
+
+WhatsApp só sai na resposta se organizer_id === jogador da sessão.
+Comprovante só baixa com a mesma checagem.
+“Um racha ativo” é índice único no banco: dois criar ao mesmo tempo, um falha.
+Participante não tem rota de cancelar a si mesmo.
+Depois de finished, gols só com organizador.
+player_id da ação vem da sessão, nunca de um campo que o celular invente.
+10. Fluxo de identidade (nome + WhatsApp)
+Não é login tradicional. É o fluxo que você descreveu, com sessão no aparelho.
+
+Pessoa abre o link. Se já tem sessão válida neste aparelho → entra direto.
+Se não: pede nome e WhatsApp.
+WhatsApp é normalizado (só números; 11 99999-9999 = 11999999999).
+Se o número não existe → cria o jogador, abre sessão, nome gravado.
+Se o número já existe → mostra: “Este WhatsApp já está cadastrado como Rodrigo.”
+[ SOU EU ] → atualiza o nome (ex.: para Rogério), reabre sessão, histórico intacto (gols, presença, furadas, artilharias).
+Se não for ela → não entra com esse número.
+WhatsApp continua privado. Os outros só veem o nome novo.
+O WhatsApp é o identificador. O nome é só o que aparece.
+
+Limite honesto: quem souber o número de alguém pode tocar em “Sou eu”. Você aceitou isso para não ter senha/SMS. A confirmação do nome reduz clique errado, não impede imitação.
+
+No perfil: ação Trocar de jogador, para celular emprestado na firma.
+
+11. Fluxo de criação do racha
+Só aparece Criar racha se não houver racha ativo.
+Qualquer pessoa identificada pode criar.
+Formulário: data, horário, local, valor do campo, meta, pagamento (antes/depois), chave Pix se antes, observações.
+Criador vira organizador.
+Se pagamento antes: price_per_person_cents congela na hora
+valor do campo ÷ meta (regra de centavos: pergunta 1 no final).
+Se pagamento depois: preço oficial ainda não existe; a tela mostra valor estimado.
+Meta não é teto. 12, 13, 17… todos entram.
+Sem lista de espera.
+12. Fluxo de pagamento antecipado
+Participar → entra como 🟡 Aguardando pagamento. Não conta na barra.
+Tela: valor congelado, Pix, Copiar Pix, Anexar comprovante.
+Sem comprovante = aguardando. Sem “em análise”, sem recusa, sem cancelado.
+Anexo → servidor grava comprovante, status vira 🟢 Confirmado, confirmed_at preenchido.
+No mesmo instante, no celular de quem anexou: status muda, contador sobe, barra anima. Sem recarregar.
+Valor por pessoa não cai se entrar gente a mais. 12, 15 ou 18 pagam o mesmo valor congelado.
+Excedente/déficit só calculados, nunca movimentados.
+13. Fluxo de pagamento posterior
+Participar → 🟢 Confirmado na hora. Barra sobe na hora.
+Sem comprovante na entrada.
+Tela mostra valor estimado, não definitivo.
+Preço oficial = na finalização: campo ÷ quantidade de confirmados.
+Quem confirmou e faltou continua devendo. Presença não tira a cobrança.
+Exemplo: 12 confirmaram, 10 foram → 12 pagam.
+14. Fluxo do furão
+Furão só existe no pagamento antecipado:
+
+Clicou participar.
+Não enviou comprovante.
+Organizador encerra inscrições.
+🟡 Aguardando → 🐔 Furou. Continua no racha.
+Se enviar comprovante depois: 🟢 Confirmado, furo daquele racha some.
+Pagamento depois: participar já confirma. Falta no jogo é falta, não furada.
+
+15. Fluxo de encerramento (e reabertura)
+Encerrar inscrições ≠ finalizar racha.
+
+Encerrar:
+
+ninguém novo entra
+racha continua ativo (não pode criar outro)
+no pagamento antes, aguardando vira furão
+organizador pode reabrir
+Reabrir:
+
+novas pessoas entram de novo
+furões que já estavam: pergunta 2 (eu não decido)
+16. Fluxo de finalização
+Depois do jogo, o organizador finaliza:
+
+trava inscrições (se ainda abertas — pergunta 3)
+registra presença / falta
+consolida gols
+no pagamento depois, congela o preço oficial
+calcula excedente ou déficit
+atualiza rankings
+libera a criação do próximo racha
+Depois de finalizado, gols só o organizador altera.
+
+17. Fluxo de gols e artilheiro
+Cada jogador informa os próprios gols depois do jogo, antes de finalizar.
+Organizador pode corrigir a qualquer momento daquele racha.
+Depois de finalizado: só organizador.
+Artilheiro = maior número de gols naquele racha.
+Empate: todos os primeiros são artilheiros (dois 🥇).
+Artilharia no perfil = quantas vezes a pessoa foi (co)artilheira em racha finalizado.
+18. Fluxo dos rankings
+Tela Rankings, três listas, só racha finalizado. Sem ranking de confiabilidade.
+
+Gols: posição, nome, gols totais, quantidade de rachas, média.
+
+Presença: quem o organizador marcou como presente (não quem só confirmou).
+
+Furões: furadas, rachas, taxa. Exemplo 5 / 18 = 27,8% → o denominador inclui as furadas.
+
+Perfil (vinculado ao WhatsApp, não ao nome):
+
+gols, participações, furadas, artilharias, média
+19. Atualização em tempo real
+Quem age (anexou, entrou, organizador removeu) → a tela dele muda na hora (otimista).
+O servidor grava e devolve o racha atualizado.
+Se o servidor recusar, a tela desfaz.
+Os outros aparelhos pedem o racha ativo a cada ~1,5 s enquanto a tela estiver aberta.
+Nada recarrega a página.
+Para o requisito 37/38, o passo 1 é o que importa: a barra não espera o ciclo dos outros.
+
+20. Barra de progresso
+Conta somente confirmados.
+Aguardando não entra.
+Meta visível o tempo todo (marca na trilha).
+Passou da meta: a barra continua crescendo; a marca da meta fica onde a meta está.
+15 confirmados / meta 12 → 15/12 + META ATINGIDA.
+Animação só da largura da barra (suave, ~200–300 ms).
+No anexo: 1) grava pagamento 2) vira confirmado 3) banco 4) interface 5) barra anima 6) contador atualiza.
+21. Centavos
+Tudo em centavos inteiros. A tela mostra R$ 20,00.
+
+Divisão quase nunca é exata (R$ 250 ÷ 12, R$ 240 ÷ 7).
+
+“Todo mundo paga o mesmo” e “a soma fecha no centavo” ao mesmo tempo só é possível se algumas pessoas pagarem 1 centavo a mais. Isso é a pergunta 1.
+
+22. Excedente
+Exemplo: campo R$ 240, 17 × R$ 20 = R$ 340 → excedente R$ 100.
+
+Participantes: valor do racha, valor por pessoa, arrecadado, excedente. Sem rateio individual.
+
+Organizador: o mesmo + excedente ÷ confirmados como aproximado (R$ 5,88).
+
+O sistema não devolve dinheiro e não tem botão “excedente resolvido”.
+
+23. Déficit
+10 × R$ 20 = R$ 200, campo R$ 240 → faltam R$ 40.
+
+Participantes: aviso de que o arrecadado não cobre.
+
+Organizador: déficit em destaque.
+
+O sistema não decide como resolver.
+
+No pagamento depois, déficit por confirmação demais não deveria existir: o preço é campo ÷ confirmados na finalização. Déficit típico é do pagamento antes (meta não atingida, preço já congelado).
+
+24. Transferência de organização
+Só o organizador atual transfere.
+O destino precisa estar identificado no sistema (pergunta 4: qualquer um ou só quem está no racha).
+organizer_id muda; evento vai para o histórico.
+O novo vê WhatsApp, comprovantes e ações de organizador.
+O antigo perde isso na hora.
+Útil se o criador não for jogar.
+Revisão crítica — contradições e buracos
+Não inventei regra. Preciso da sua decisão nestes pontos antes de escrever arquivo.
+
+1. Mesmo valor × soma no centavo
+Todo mundo paga o mesmo valor congelado. Divisões com fração de centavo não fecham os dois lados.
+
+A) Todos pagam o mesmo valor arredondado. A diferença de poucos centavos entra no excedente/déficit, explicada na tela.
+
+B) A soma do campo fecha exatamente, e 1 ou 2 pessoas pagam 1 centavo a mais.
+
+Qual?
+
+2. Reabrir inscrições depois do furão
+Quem já estava 🐔 Furou, ao reabrir:
+
+A) Continua furão até pagar (aí vira confirmado). Gente nova entra.
+
+B) Volta para 🟡 Aguardando pagamento.
+
+Qual?
+
+3. Finalizar com inscrição ainda aberta
+Pode finalizar sem encerrar antes (o finalizar já fecha tudo), ou o botão só aparece depois de encerrar?
+
+4. Transferir para quem?
+Só confirmado daquele racha, qualquer participante (incluindo aguardando/furão), ou qualquer jogador já cadastrado?
+
+5. Organizador entra sozinho?
+Ao criar, o organizador:
+
+A) Precisa clicar Participar (e pagar, se for antecipado).
+
+B) Já entra confirmado.
+
+C) Já entra aguardando pagamento, se for antecipado.
+
+Qual?
+
+6. “Remover o furo” no ranking
+Se o furão pagar depois e virar confirmado:
+
+A) Aquela furada some do ranking (só conta quem terminou como furão).
+
+B) A furada permanece no ranking histórico, mesmo o racha mostrando confirmado.
+
+Qual? (A é a leitura mais literal de “remover o furo”.)
+
+7. Removido pelo organizador
+Essa pessoa conta em algum ranking? Se já tinha pago, mostramos “valor a devolver” só para o organizador — ok. Ela some da lista ou fica como Removido?
+
+8. Quando abrem gols e presença?
+Proposta: depois de encerrar inscrições (jogo prestes a acontecer / aconteceu), cada um informa gols; o organizador marca presença; finalizar trava.
+
+Confirma, ou gols/presença só na tela de finalizar, no momento do clique?
+
+9. Presença não marcada na finalização
+Se o organizador finalizar sem marcar alguém:
+
+A) Confirmado vira presente por padrão.
+
+B) Confirmado vira falta por padrão.
+
+C) Não deixa finalizar até marcar todo mundo.
+
+Qual?
+
+10. Média de gols
+37 gols / 24 rachas = 1,54. Os 24 são:
+
+A) Rachas em que esteve presente.
+
+B) Rachas em que confirmou (inclui falta).
+
+Recomendo A.
+
+11. Artilheiro com 0 gols
+Se ninguém marcou, fica sem artilheiro ou todo mundo empatado com 0?
+
+12. Pagamento depois: marcar “já pagou”?
+Você não pediu comprovante nesse modo. Depois de finalizar, o sistema só mostra quanto cada um deve, ou o organizador também marca “pagou” / anexa comprovante?
+
+13. Mudar custo/meta/Pix depois que já tem gente
+O preço antecipado fica congelado. Se o organizador mudar o valor do campo depois, só mudam excedente/déficit, não o valor por pessoa.
+
+Pode mudar custo, meta e tipo de pagamento depois do primeiro participante? Ou congela na criação?
+
+14. WhatsApp: formato
+Aceito com ou sem 55, com DDD obrigatório (11 dígitos nacionais). 11999999999 e 5511999999999 são a mesma pessoa. Confirma?
+
+15. Nome igual no “já cadastrado”
+Se o WhatsApp existe e o nome digitado é o mesmo, ainda mostra “Sou eu” ou entra direto?
+
+16. Comprovante: só foto ou também PDF?
+E câmera do celular liberada, além da galeria?
+
+17. Racha ativo = não finalizado
+Enquanto estiver open ou closed, ninguém cria outro. Só depois de finalizar. Confirma? (Se “ativo” for só inscrição aberta, daria para criar o racha da semana seguinte com o jogo de hoje ainda sem gols — parece errado.)
+
+Quando você responder essas 17, eu começo o app completo: racha atual, criar, participar, Pix, comprovante, barra ao vivo, organizador, rankings e perfil, no mesmo link, com a palavra racha/rachas em todo o produto.
+
+Pode responder só com os números, por exemplo: 1A, 2A, 3….
+
+mas voce ta vendo como um projeto profissional, eu quero algo mais amador mesmo apenas para as pessoas do trabalho só que entregando uma certa qualidade, nao pode ser app porque eu nunca fiz nem sei por onde começar, pensei em algo como link mesmo publicado no github pages e porque isso seria um problema? ja que apenas eu terei acesso ao codigo e isso nao é pra ser algo comercial. Sobre nao ser app, eu quero q seja algo prático, clicou no link, loga e marca presença, sem precisar baixar nada, mas voce tem autonomia para apontar falhar nesse meu pensamento, nao precisa concordar com tudo, e sobre o login, pensei melhor e nao quero as pessoas colocando wpp pois alguem pode nao se sentir seguro, pensei em algo como usuário e senha mesmo apenas
+
+
+Trabalhou por 49s
+Você tem razão em uma parte, e a outra vale a pena eu discordar — sem enrolação.
+
+O que mudou na sua ideia (e eu concordo)
+Usuário e senha, sem WhatsApp. Melhor para o grupo. Ninguém entrega telefone, e a pessoa prova que é ela pela senha. O “Sou eu” some. O histórico fica na conta, não no nome: se Rodrigo vira Rogério no perfil, gols e rachas continuam nele.
+
+Não quero baixar nada. Também concordo. Não vai ser app da loja, não vai instalar, não vai ter Xcode nem Play Store. É um link. Clicou, entrou, usou no celular.
+
+Quando eu falei “app”, quis dizer site que parece um aplicativo (botões grandes, barra embaixo, abre no Chrome/Safari). Foi um mal-entendido. Você não precisa saber programar nem “por onde começar”: eu monto, você só abre o link.
+
+Tom amador, para a firma. Também concordo. Não vai parecer sistema de RH. Vai parecer ferramenta do racha: simples, direta, com cara boa o suficiente para o pessoal não odiar.
+
+Onde eu discordo: GitHub Pages
+O problema não é ser comercial, nem outra pessoa ver o código. O código pode ser só seu. O problema é outro.
+
+GitHub Pages só publica página parada. Não guarda sozinho “quem confirmou neste racha” para todo mundo ao mesmo tempo.
+
+Se a lista de jogadores vive dentro da página, acontece isto, mesmo entre colegas:
+
+qualquer um abre o inspecionar do navegador e vê dados que não deveria
+qualquer um consegue fingir que é o organizador e remover gente, mudar o valor, zerar a barra
+se o “banco” for um arquivo público, o comprovante e a senha não têm onde ficar de forma decente
+Para um racha da firma isso não é paranoia de produto profissional. É o cenário real: um curioso, um celular emprestado, uma brincadeira no meio do expediente.
+
+O que você descreveu — um link, todo mundo vê o mesmo racha, loga, marca presença — precisa de um lugar para guardar os dados. Isso não é GitHub Pages. Na prática você recebe um link publicado, igual você imaginou. Só que com servidor atrás, senão o combinado não se sustenta.
+
+Você não vai criar conta em hospedagem, não vai configurar banco, não vai lidar com Git. Isso fica comigo.
+
+Como fica o uso (o que importa)
+Abre o link no celular
+Entra com usuário e senha (ou cria a conta na hora, se for a primeira vez)
+Cai no racha atual
+Toca Participar / anexa comprovante / vê a barra subir
+Sem loja, sem instalação, sem WhatsApp.
+
+Login simples:
+
+Usuário + senha
+O nome que os outros veem pode ser o próprio usuário, para não ter três campos
+Senha curta e possível de lembrar (é racha da firma, não banco)
+No perfil: sair / trocar de pessoa, para celular emprestado
+O resto do racha que você já definiu mantém: um racha ativo, meta, pagamento antes ou depois, comprovante = confirmado, furão, encerrar/reabrir, finalizar, gols, rankings, organizador. A prioridade continua sendo: abriu o link, achou o racha, participou rápido.
+
+Segurança no nível certo para isso: o colega comum não edita o racha, não vê comprovante dos outros, não assume organização. Sem RLS de empresa, sem painel corporativo — só o servidor recusando o que a pessoa não pode fazer.
+
+Antes de eu começar a montar, preciso só destas decisões. O resto eu assumo do que você já fechou.
+
+A. Escopo
+
+O racha completo (dinheiro, Pix, comprovante, gols, rankings) continua, ou você quer a primeira versão só com: criar racha, participar, lista e presença?
+
+B. Nome na lista
+
+O usuário é o nome que aparece (Rodrigo entra como rodrigo), ou tem um campo “nome” separado?
+
+C. As que ainda estão abertas (pode responder só com letra):
+
+Centavos: A todo mundo paga o mesmo (diferença vai para excedente/déficit, visível) ou B uns pagam 1 centavo a mais para fechar exato?
+Reabrir: furão A continua furão até pagar ou B volta para aguardando?
+Finalizar com inscrição aberta: A pode (finalizar já fecha) ou B só depois de encerrar?
+Transferir organização: A só confirmado daquele racha ou B qualquer cadastrado?
+Quem cria o racha: A clica Participar também, B já entra confirmado, C já entra aguardando se o pagamento for antes?
+Furão que paga depois: a furada A some do ranking ou B fica no histórico?
+Removido pelo organizador: A some da lista ou B fica como Removido?
+Gols/presença: A depois de encerrar inscrições, B só na hora de finalizar?
+Finalizou sem marcar presença: A confirmado = presente, B = falta, C obriga marcar todos?
+Média de gols: A só rachas em que foi, B todos em que confirmou?
+Ninguém marcou gol: A sem artilheiro ou B todo mundo empatado em 0?
+Pagamento depois: A só mostra o valor devido ou B organizador também marca “pagou”?
+Depois que já tem gente: custo/meta A ainda podem mudar (preço por pessoa do “antes” continua congelado) ou B congelam na criação?
+Comprovante: A só foto (câmera + galeria) ou B foto e PDF?
+Racha ativo = ainda não finalizado (encerrado continua bloqueando racha novo): A sim ou B não?
+Minha recomendação, se quiser ir rápido:
+
+A completo · usuário = nome na lista · 1A 2A 3A 4A 5A 6A 7B 8A 9C 10A 11A 12A 13B 14A 15A
+
+Quando você fechar isso, eu começo o sistema de verdade no link, sem GitHub Pages e sem WhatsApp.
+
+A. Escopo
+nao entendi, quero como o primeiro prompt
+
+B. Nome na lista
+campo nome separado
+
+C. As que ainda estão abertas (pode responder só com letra):
+1 a
+2 a
+3 a
+4 a (organizador será aquele que clicar em + criar racha)
+5 b
+6 a
+7 b
+8 b
+9 a
+10 b
+ 11 b
+ 12 b
+ 13 a
+14  b
+15 a
+
