@@ -255,8 +255,8 @@ class App {
         return `
         <div class="fade-in">
             <div class="app-header" style="padding-top: 60px;">
-                <h1>⚽ Rachas da Firma</h1>
-                <p class="subtitle">Organize os jogos do trabalho</p>
+                <h1>⚽ Racha Mêntore</h1>
+                <p class="subtitle">Um oferecimento de: Time Cilios</p>
             </div>
             <div class="card">
                 <div class="tabs" id="auth-tabs">
@@ -307,7 +307,7 @@ class App {
         return `
         <div class="fade-in">
             <div class="app-header">
-                <h1>⚽ Rachas da Firma</h1>
+                <h1>⚽ Racha Mêntore</h1>
                 <p class="subtitle">Nenhum racha ativo no momento</p>
             </div>
             <div class="empty-state">
