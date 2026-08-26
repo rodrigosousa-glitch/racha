@@ -1,5 +1,5 @@
 /* ============================================================
-   SISTEMA DE RACHAS - APP COMPLETO (CORRIGIDO E SEGURO)
+   SISTEMA DE RACHAS - APP COMPLETO COM VISUALIZADOR DE COMPROVANTES
    ============================================================ */
 
 // ============================================================
@@ -20,6 +20,7 @@ class App {
         this.screenParams = {};
         this.realtimeSub = null;
         this.navVisible = false;
+        this.activeReceiptModal = null;
     }
 
     async init() {
@@ -137,12 +138,17 @@ class App {
 
             if (!error && data) {
                 this.participations = data;
+                
+                // Carrega todos os comprovantes para o organizador
                 if (this.isOrganizer()) {
-                    const { data: receipts } = await this.supabase
-                        .from('receipts')
-                        .select('*')
-                        .in('participation_id', data.map(p => p.id));
-                    this.receipts = receipts || [];
+                    const partIds = data.map(p => p.id);
+                    if (partIds.length > 0) {
+                        const { data: receipts } = await this.supabase
+                            .from('receipts')
+                            .select('*')
+                            .in('participation_id', partIds);
+                        this.receipts = receipts || [];
+                    }
                 }
             }
         } catch (e) {
@@ -230,14 +236,17 @@ class App {
             default: html = this.renderHome();
         }
 
-        // Junta a barra de navegação antes de colocar na tela para NÃO apagar os cliques
         if (this.navVisible) {
             html += this.renderBottomNav();
         }
 
+        // Modal dinâmico de comprovante (se aberto)
+        if (this.activeReceiptModal) {
+            html += this.renderReceiptModalHtml(this.activeReceiptModal);
+        }
+
         app.innerHTML = html;
 
-        // Anexa os cliques depois que tudo já está no DOM
         this.attachListeners();
         if (this.navVisible) {
             this.attachNavListeners();
@@ -255,8 +264,8 @@ class App {
         return `
         <div class="fade-in">
             <div class="app-header" style="padding-top: 60px;">
-                <h1>⚽ Racha Mêntore</h1>
-                <p class="subtitle">Um oferecimento de: Time Cilios</p>
+                <h1>⚽ Racha da galera</h1>
+                <p class="subtitle">resenha mentore</p>
             </div>
             <div class="card">
                 <div class="tabs" id="auth-tabs">
@@ -281,7 +290,7 @@ class App {
                     </div>
                     <div class="form-group">
                         <label>Nome Completo / Apelido</label>
-                        <input type="text" id="reg-name" placeholder="Ex: Rodrigo Silva">
+                        <input type="text" id="reg-name" placeholder="Ex: Rodrigo Pinheiro">
                     </div>
                     <div class="form-group">
                         <label>Senha</label>
@@ -307,7 +316,7 @@ class App {
         return `
         <div class="fade-in">
             <div class="app-header">
-                <h1>⚽ Racha Mêntore</h1>
+                <h1>⚽ Racha da galera</h1>
                 <p class="subtitle">Nenhum racha ativo no momento</p>
             </div>
             <div class="empty-state">
@@ -474,9 +483,9 @@ class App {
                 </div>
             </div>` : ''}
             <div class="receipt-upload" id="receipt-upload">
-                <input type="file" id="receipt-file" accept="image/*,.pdf">
+                <input type="file" id="receipt-file" accept="image/*,application/pdf,.pdf,.png,.jpg,.jpeg,.heic,.webp">
                 <div class="icon">📎</div>
-                <p>Toque para anexar comprovante</p>
+                <p>Toque para anexar comprovante (Foto ou PDF)</p>
             </div>
         </div>`;
     }
@@ -490,20 +499,17 @@ class App {
         else if (p.status === 'furou') badge = '<span class="badge badge-furou">🐔</span>';
         else if (p.status === 'removed') badge = '<span class="badge badge-removed">✕</span>';
 
-        let actions = '';
-        if (isOrg && p.status !== 'removed' && p.player_id !== this.user.id) {
-            actions = `
-            <div class="participant-actions">
-                <button class="btn btn-sm btn-danger" data-action="remove" data-id="${p.id}">Remover</button>
-            </div>`;
-        }
-
         let receiptBtn = '';
         if (isOrg && p.status === 'confirmed') {
             const receipt = this.receipts.find(r => r.participation_id === p.id);
             if (receipt) {
-                receiptBtn = `<button class="btn btn-sm btn-outline" data-action="view-receipt" data-id="${receipt.id}">📎</button>`;
+                receiptBtn = `<button class="btn btn-sm btn-info" data-action="view-receipt" data-id="${receipt.id}" data-name="${this.escapeHtml(name)}">📄 Ver Comprovante</button>`;
             }
+        }
+
+        let removeBtn = '';
+        if (isOrg && p.status !== 'removed' && p.player_id !== this.user.id) {
+            removeBtn = `<button class="btn btn-sm btn-danger" data-action="remove" data-id="${p.id}">Remover</button>`;
         }
 
         return `
@@ -517,7 +523,32 @@ class App {
             </div>
             <div class="participant-actions">
                 ${receiptBtn}
-                ${actions}
+                ${removeBtn}
+            </div>
+        </div>`;
+    }
+
+    // Modal de Preview de Comprovante
+    renderReceiptModalHtml(modalData) {
+        const isPdf = modalData.mime.includes('pdf') || modalData.url.toLowerCase().endsWith('.pdf');
+
+        return `
+        <div class="receipt-modal-backdrop" id="receipt-modal-backdrop">
+            <div class="receipt-modal-content">
+                <div class="receipt-modal-header">
+                    <h3>📄 Comprovante de ${this.escapeHtml(modalData.playerName)}</h3>
+                    <button class="receipt-modal-close" id="btn-close-receipt-modal">✕</button>
+                </div>
+                <div class="receipt-modal-body">
+                    ${isPdf ? 
+                        `<iframe src="${modalData.url}" class="receipt-modal-pdf"></iframe>` : 
+                        `<img src="${modalData.url}" alt="Comprovante" class="receipt-modal-img">`
+                    }
+                </div>
+                <div class="receipt-modal-footer">
+                    <a href="${modalData.url}" target="_blank" class="btn btn-outline btn-sm" style="flex:1;">Abrir Original</a>
+                    <button class="btn btn-primary btn-sm" id="btn-close-receipt-modal-footer" style="flex:1;">Fechar</button>
+                </div>
             </div>
         </div>`;
     }
@@ -854,7 +885,7 @@ class App {
         toast.style.cssText = `
             position:fixed;top:20px;left:50%;transform:translateX(-50%);
             background:${type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--warning)'};
-            color:white;padding:12px 24px;border-radius:12px;font-weight:600;z-index:1000;
+            color:white;padding:12px 24px;border-radius:12px;font-weight:600;z-index:2000;
             animation:fadeIn 0.3s ease-out;box-shadow:0 4px 12px rgba(0,0,0,0.3);
         `;
         toast.textContent = msg;
@@ -1084,13 +1115,13 @@ class App {
             fileInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
+                if (file.size > 10 * 1024 * 1024) return this.showToast('Arquivo muito grande (máx 10MB)', 'error');
 
                 const myPart = this.getMyParticipation();
                 if (!myPart) return;
 
                 uploadArea.innerHTML = '<div class="icon">⏳</div><p>Enviando...</p>';
 
-                // 1. Atualização OTIMISTA imediata (A barra sobe na hora)
                 myPart.status = 'confirmed';
                 myPart.confirmed_at = new Date().toISOString();
                 this.render();
@@ -1100,7 +1131,6 @@ class App {
                     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
                     const path = `${this.currentRacha.id}/${myPart.id}_${Date.now()}.${ext}`;
 
-                    // Envio para o storage
                     const { error: upError } = await this.supabase.storage
                         .from('receipts')
                         .upload(path, file, { 
@@ -1110,7 +1140,6 @@ class App {
 
                     if (upError) throw upError;
 
-                    // Registro na tabela receipts
                     await this.supabase.from('receipts').insert({
                         participation_id: myPart.id,
                         file_path: path,
@@ -1118,7 +1147,6 @@ class App {
                         size_bytes: file.size || 1024
                     });
 
-                    // Atualiza no banco que está confirmado e limpa eventual furo
                     await this.supabase.from('participations')
                         .update({ 
                             status: 'confirmed', 
@@ -1134,6 +1162,46 @@ class App {
                     this.showToast('Erro no envio do arquivo: ' + (err.message || 'Tente novamente'), 'error');
                     await this.loadRachaData();
                 }
+            });
+        }
+
+        // Visualizar comprovante (Exclusivo do organizador)
+        document.querySelectorAll('[data-action="view-receipt"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const receiptId = btn.dataset.id;
+                const playerName = btn.dataset.name || 'Jogador';
+                const receipt = this.receipts.find(r => r.id === receiptId);
+                if (!receipt) return;
+
+                const { data } = this.supabase.storage
+                    .from('receipts')
+                    .getPublicUrl(receipt.file_path);
+
+                this.activeReceiptModal = {
+                    url: data.publicUrl,
+                    mime: receipt.mime_type || 'image/jpeg',
+                    playerName: playerName
+                };
+                this.render();
+            });
+        });
+
+        // Fechar modal de comprovante
+        const closeReceiptBtn = document.getElementById('btn-close-receipt-modal');
+        const closeReceiptFooter = document.getElementById('btn-close-receipt-modal-footer');
+        const backdrop = document.getElementById('receipt-modal-backdrop');
+
+        const closeModalHandler = () => {
+            this.activeReceiptModal = null;
+            this.render();
+        };
+
+        if (closeReceiptBtn) closeReceiptBtn.addEventListener('click', closeModalHandler);
+        if (closeReceiptFooter) closeReceiptFooter.addEventListener('click', closeModalHandler);
+        if (backdrop) {
+            backdrop.addEventListener('click', (e) => {
+                if (e.target === backdrop) closeModalHandler();
             });
         }
 
@@ -1304,16 +1372,6 @@ class App {
             });
         });
 
-        // Ver comprovante
-        document.querySelectorAll('[data-action="view-receipt"]').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const receipt = this.receipts.find(r => r.id === btn.dataset.id);
-                if (!receipt) return;
-                const { data } = await this.supabase.storage.from('receipts').createSignedUrl(receipt.file_path, 300);
-                if (data?.signedUrl) window.open(data.signedUrl, '_blank');
-            });
-        });
-
         // Perfil
         const btnSaveProfile = document.getElementById('btn-save-profile');
         if (btnSaveProfile) {
@@ -1365,15 +1423,11 @@ class App {
         });
     }
 
-    // ============================================================
-    // CARREGAMENTO ROBUSTO DE RANKINGS DIRETO DAS TABELAS
-    // ============================================================
     async loadRankingData(type) {
         const container = document.getElementById('ranking-content');
         if (!container) return;
 
         try {
-            // Busca apenas dados de rachas finalizados
             const { data: participations, error } = await this.supabase
                 .from('participations')
                 .select('goals, presence, status, player:player_id(id, display_name), racha:racha_id(id, status)')
@@ -1473,7 +1527,6 @@ class App {
     }
 }
 
-// Inicializa quando a página estiver carregada
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         const app = new App();
